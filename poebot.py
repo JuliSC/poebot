@@ -1,7 +1,8 @@
 import feedparser
 import re
 from bs4 import BeautifulSoup
-from win10toast import ToastNotifier
+from win10toast_click import ToastNotifier
+import subprocess as sp
 
 
 def rss_get_items_feedparser(webData):
@@ -35,32 +36,84 @@ def get_link_from_item(item):
     return p.search(item.summary).group()[:-11]
 
 
-def parse(url):
+def parseAndReturnNews(url):
     freeBoxNews = []
     twitchDropsNews = []
 
     for item in rss_get_items(url):
-        if 'free' in item.title or 'free' in item.summary:
+        if 'free' in item.title.lower() or 'free' in item.summary.lower():
             freeBoxNews.append(item)
-        if 'livestream' in item.title or 'livestream' in item.summary:
+        if 'drops' in item.title.lower() or 'drops' in item.summary.lower():
             twitchDropsNews.append(item)
 
-    print('These links might contain free boxes')
-    for item in freeBoxNews:
-        print('\t' + get_link_from_item(item))
-
-    print()
-
-    print('These links might contain twitch drops')
-    for item in twitchDropsNews:
-        print(f"\t {item.title}: {get_link_from_item(item)}")
+    return [freeBoxNews, twitchDropsNews]
 
 
-def notify():
+def createNotification(news):
+    old_news = readFileToString()
+    formattedNews = ''
+
+    formattedNews += 'These links might contain free boxes\n'
+    for item in news[0]:
+        link = get_link_from_item(item)
+        if link not in old_news:
+            formattedNews += (f'NEW\t {item.title}:'
+                              f'{get_link_from_item(item)}\n')
+        else:
+            formattedNews += f'\t {item.title}: {get_link_from_item(item)}\n'
+
+    formattedNews += '\n'
+
+    formattedNews += 'These links might contain twitch drops\n'
+    for item in news[1]:
+        link = get_link_from_item(item)
+        if link not in old_news:
+            formattedNews += (f'NEW\t {item.title}:'
+                              f'{get_link_from_item(item)}\n')
+        else:
+            formattedNews += f'\t {item.title}: {get_link_from_item(item)}\n'
+
+    return formattedNews
+
+
+def readFileToString():
+    with open('poenews.txt', 'r') as file:
+        data = file.read()
+        return data
+
+
+def writeNewsToFile(news):
+    f = open('poenews.txt', 'w')
+    f.write(news)
+    f.close()
+
+
+def openNewsFile():
+    programName = "C:/Program Files (x86)/Notepad++/notepad++.exe"
+    fileName = "poenews.txt"
+    sp.Popen([programName, fileName])
+
+
+def notify(title, body):
     toast = ToastNotifier()
     toast.show_toast(
-        'These links might contain free boxes',
-        'Notification body',
+        title,
+        body,
         duration=20,
-        icon_path='poeicon.ico'
+        icon_path='./poeicon.ico',
+        threaded=True,
+        callback_on_click=openNewsFile
     )
+
+
+def main():
+    url = 'https://www.pathofexile.com/news/rss'
+
+    news = parseAndReturnNews(url)
+    formattedNews = createNotification(news)
+    writeNewsToFile(formattedNews)
+
+    notify('These PoE news are interesting', "Click to see what's up")
+
+
+main()
