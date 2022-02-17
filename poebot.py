@@ -1,5 +1,7 @@
 import feedparser
 import re
+import os
+import time
 from bs4 import BeautifulSoup
 from win10toast_click import ToastNotifier
 import subprocess as sp
@@ -77,26 +79,28 @@ def createNotification(news):
 
 
 def readFileToString():
-    with open('poenews.txt', 'r') as file:
-        data = file.read()
-        return data
+    if  os.path.exists("./poenews.txt"):
+        with open('./poenews.txt', 'r') as file:
+            data = file.read()
+            return data
+    else:
+        return ""
 
 
 def writeNewsToFile(news):
-    f = open('poenews.txt', 'w')
+    f = open('./poenews.txt', 'w')
     f.write(news)
     f.close()
 
 
 def openNewsFile():
     programName = "C:/Program Files (x86)/Notepad++/notepad++.exe"
-    fileName = "poenews.txt"
+    fileName = "./poenews.txt"
     sp.Popen([programName, fileName])
 
 
 def notify(title, body):
-    toast = ToastNotifier()
-    toast.show_toast(
+    ToastNotifier().show_toast(
         title,
         body,
         duration=20,
@@ -104,16 +108,3 @@ def notify(title, body):
         threaded=True,
         callback_on_click=openNewsFile
     )
-
-
-def main():
-    url = 'https://www.pathofexile.com/news/rss'
-
-    news = parseAndReturnNews(url)
-    formattedNews = createNotification(news)
-    writeNewsToFile(formattedNews)
-
-    notify('These PoE news are interesting', "Click to see what's up")
-
-
-main()
